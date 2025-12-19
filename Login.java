@@ -14,7 +14,7 @@ public class Login extends JFrame {
 	 JLabel l3 = new JLabel("Role:");
 	 JLabel l0 = new JLabel("LOGIN");
 	 JRadioButton b1 = new JRadioButton("Student");
-	 JRadioButton b2 = new JRadioButton("Authority");
+	 JRadioButton b2 = new JRadioButton("Driver");
 	 JRadioButton b3 = new JRadioButton("Admin");
 
 	 ButtonGroup btn = new ButtonGroup();
