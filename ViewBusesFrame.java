@@ -4,9 +4,9 @@ import javax.swing.*;
 import java.awt.*;
 
 public class ViewBusesFrame extends JFrame {
-
-    ViewBusesFrame() {
-
+	String RollNumber;
+    ViewBusesFrame(String RollNumber) {
+        this.RollNumber = RollNumber;
         this.setLayout(null);
         this.setVisible(true);
         this.setBounds(800, 300, 500, 800);
@@ -88,7 +88,13 @@ public class ViewBusesFrame extends JFrame {
             JLabel time = new JLabel(data[i][3]);
             time.setBounds(320, 15, 60, 25);
 
+            String busNo = data[i][0];  // LN-101, LN-102, etc.
+
             JButton book = new JButton("Book Seat");
+
+            book.addActionListener(e -> {
+                new Bus(busNo,RollNumber);   
+            });
             book.setBounds(380, 10, 100, 30);
 
             p.add(bus);
@@ -103,6 +109,7 @@ public class ViewBusesFrame extends JFrame {
     }
 
     public static void main(String[] args) {
-        new ViewBusesFrame();
+        new ViewBusesFrame("24ucs100");
     }
 }
+
