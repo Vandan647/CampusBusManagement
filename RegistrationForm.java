@@ -1,4 +1,7 @@
+package campusComplaints;
+
 import java.awt.*;
+import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
 
@@ -9,9 +12,12 @@ public class RegistrationForm extends JFrame implements ActionListener {
     JButton otpBtn,clearBtn,eyeBtn1,eyeBtn2;
     ImageIcon eyeOpenIcon,eyeCloseIcon;
     char passEcho,confirmEcho;
-
+    Connection conn;
+    Statement stmt;
+    ResultSet rs;
     public RegistrationForm() {
 
+    	
         setTitle("Registration Form");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -69,7 +75,7 @@ public class RegistrationForm extends JFrame implements ActionListener {
         panel.add(nameField);
 
         
-        JLabel emailLabel = new JLabel("Email:");
+        JLabel emailLabel = new JLabel("Roll number:");
         emailLabel.setBounds(80, 130, 100, 25);
         panel.add(emailLabel);
 
@@ -105,7 +111,7 @@ public class RegistrationForm extends JFrame implements ActionListener {
         panel.add(confirmPassField);
 
         
-        otpBtn = new JButton("Send OTP");
+        otpBtn = new JButton("Register");
         otpBtn.setBounds(90, 340, 140, 35);
         panel.add(otpBtn);
 
@@ -166,8 +172,26 @@ public class RegistrationForm extends JFrame implements ActionListener {
 
         eyeBtn1.setCursor(cursor);
         eyeBtn2.setCursor(cursor);
-
+        otpBtn.addActionListener(this);
         setVisible(true);
+        connectDB();
+            
+    }
+    
+
+    // Database connection method
+    private void connectDB() 
+     {
+        try 
+        {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/BusManagement","root","Root@1234");
+            System.out.println("Database Connected.");
+        } 
+        catch (Exception e) 
+        {
+            JOptionPane.showMessageDialog(this, "Database Connection Failed: " + e.getMessage());
+        }
     }
 
     public void actionPerformed(ActionEvent e) {
@@ -192,8 +216,33 @@ public class RegistrationForm extends JFrame implements ActionListener {
         }
 
         else if (e.getSource()==otpBtn) {
+   
+            	    String name = nameField.getText();
+            	    String roll = emailField.getText();
+            	    String mobile = mobileField.getText();
+            	    String password = String.valueOf(passField.getPassword());
+
+            	    try {
+            	        String query = "INSERT INTO Student (Name, RollNumber , mobile, password) VALUES (?, ?, ?, ?)";
+            	        PreparedStatement pst = conn.prepareStatement(query);
+
+            	        pst.setString(1, name);
+            	        pst.setString(2, roll);
+            	        pst.setString(3, mobile);
+            	        pst.setString(4, password);
+
+            	        pst.executeUpdate();
+            	        JOptionPane.showMessageDialog(this, "Student Registered Successfully ✅");
+            	        clearFields();
+			} 
+           catch (SQLException e1) {
+				
+
+                JOptionPane.showMessageDialog(this, "Error: " + e1.getMessage());
+			               }
 
         }
+        
 
         else if (e.getSource()==clearBtn) {
             clearFields();
