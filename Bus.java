@@ -1,136 +1,124 @@
-package campusComplaints;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import javax.swing.*;
 import java.sql.*;
 
 public class Bus extends JFrame {
 
-    Connection conn;
+    // ---------- SEATS ----------
+    JRadioButton[] seats = new JRadioButton[50];
+    ButtonGroup seatGroup = new ButtonGroup();
+
+    // ---------- ICONS ----------
+    ImageIcon availableIcon = new ImageIcon(
+            getClass().getResource("/seats/seat_available.png"));
+
+    ImageIcon selectedIcon = new ImageIcon(
+            getClass().getResource("/seats/seat_selected.png"));
+
+    ImageIcon bookedIcon = new ImageIcon(
+            getClass().getResource("/seats/seat_booked.png"));
+
+    // ---------- DB ----------
+    Connection con;
     PreparedStatement ps;
     ResultSet rs;
-    String RollNumber;
-    JCheckBox[] seats = new JCheckBox[20];
-    JButton book = new JButton("Confirm Booking");
-    String busNo;
 
-    public Bus(String busNo,String RollNumber) {
+    String url = "jdbc:mysql://localhost:3306/BusManagement";
+    String user = "user1";
+    String pass = "User1@00";
 
-        this.busNo = busNo;
-        this.RollNumber= RollNumber;
+    // ---------- PASSED VALUES ----------
+    String busNumber;
+    String rollNumber;
+
+    // ---------- CONSTRUCTOR ----------
+    public Bus(String busNumber, String rollNumber) {
+        this.busNumber = busNumber;
+        this.rollNumber = rollNumber;
+
         connectDB();
 
-        setTitle("Bus Seat Selection");
-        setSize(500, 900);
+        setTitle("Seat Booking");
+        setSize(380, 720);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
+        setLayout(null);
 
-        JLabel title = new JLabel("Bus No: " + busNo, SwingConstants.CENTER);
-        title.setFont(new Font("Tahoma", Font.BOLD, 18));
-        add(title, BorderLayout.NORTH);
+        JLabel legendTitle = new JLabel("Seat Legend");
+        legendTitle.setBounds(130, 10, 120, 20);
+        legendTitle.setFont(new Font("Arial", Font.BOLD, 14));
+        add(legendTitle);
 
-        // ================= BUS PANEL =================
-        JPanel busPanel = new JPanel(new GridBagLayout());
-        busPanel.setBackground(Color.WHITE);
+        addLegendIcon(availableIcon, "Available", 40);
+        addLegendIcon(selectedIcon, "Selected", 70);
+        addLegendIcon(bookedIcon, "Booked", 100);
 
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(15, 25, 15, 25);
+        JPanel busPanel = new JPanel(null);
+        busPanel.setBounds(50, 130, 280, 500);
+        busPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY, 3));
+        add(busPanel);
 
+        JLabel steering = new JLabel("🧑‍✈️");
+        steering.setBounds(240, 10, 30, 30);
+        busPanel.add(steering);
+
+        int[] leftX = {30, 70};
+        int[] rightX = {150, 190, 230};
+
+        int y = 50;
         int seatNo = 1;
 
-        // DRIVER
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        JLabel driver = new JLabel("🧑‍✈️");
-        driver.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
-        busPanel.add(driver, gbc);
-
-        gbc.gridx = 1;
-        busPanel.add(new JLabel(""), gbc);
-
-        // SEATS (5 × 4 = 20)
-        for (int row = 1; row <= 5; row++) {
-
-            gbc.gridy = row;
-
-            for (int col = 0; col <= 1; col++) {
-                gbc.gridx = col;
-                addSeat(busPanel, gbc, seatNo++);
+        for (int row = 0; row < 10; row++) {
+            for (int x : leftX) {
+                createSeat(busPanel, seatNo++, x, y);
             }
 
-            gbc.gridx = 2;
-            busPanel.add(new JLabel(""), gbc);
-
-            for (int col = 3; col <= 4; col++) {
-                gbc.gridx = col;
-                addSeat(busPanel, gbc, seatNo++);
+            for (int x : rightX) {
+                createSeat(busPanel, seatNo++, x, y);
             }
+
+            y += 40;
         }
-
-        // ================= BUTTON PANEL =================
-        JPanel bottomPanel = new JPanel();
-        bottomPanel.setBackground(Color.WHITE);
-
-        book.setFont(new Font("Tahoma", Font.BOLD, 16));
-        bottomPanel.add(book);
-
-        add(busPanel, BorderLayout.CENTER);
-        add(bottomPanel, BorderLayout.SOUTH);
 
         loadBookedSeats();
 
-        book.addActionListener(e -> bookSeats());
+        JButton submit = new JButton("Confirm Booking");
+        submit.setBounds(120, 650, 150, 30);
+        add(submit);
+
+        submit.addActionListener(e -> confirmBooking());
 
         setVisible(true);
     }
 
-    // ================= ADD SEAT =================
-    private void addSeat(JPanel panel, GridBagConstraints gbc, int seatNo) {
-
-        if (seatNo > seats.length) return;
-
-        JCheckBox seat = new JCheckBox("S" + seatNo);
-        seat.setFont(new Font("Tahoma", Font.BOLD, 16));
-        seat.setPreferredSize(new Dimension(90, 50));
-        seat.setBackground(Color.WHITE);
-        seat.setHorizontalAlignment(SwingConstants.CENTER);
-
-        seats[seatNo - 1] = seat;
-        panel.add(seat, gbc);
-    }
-
-    // ================= DB CONNECTION =================
-    private void connectDB() {
+    // ---------- DB CONNECTION ----------
+    void connectDB() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            conn = DriverManager.getConnection(
-                    "jdbc:mysql://localhost:3306/BusManagement",
-                    "root",
-                    "Root@1234"
-            );
-            System.out.println("Database Connected");
+            con = DriverManager.getConnection(url, user, pass);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, e.getMessage());
         }
     }
 
-    // ================= LOAD RESERVED SEATS =================
-    private void loadBookedSeats() {
+    // ---------- LOAD BOOKED SEATS ----------
+    void loadBookedSeats() {
         try {
-            String sql = "SELECT SeatNumber FROM Bookings WHERE BusNumber=?";
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, busNo);
+            String sql = "SELECT * FROM Bus WHERE BusNumber=?";
+            ps = con.prepareStatement(sql);
+            ps.setString(1, busNumber);
             rs = ps.executeQuery();
 
-            while (rs.next()) {
-                String bookedSeat = rs.getString("SeatNumber");
+            if (rs.next()) {
+                for (int i = 1; i <= 50; i++) {
+                    String status = rs.getString("S" + i + "status");
+                    if ("booked".equals(status)) {
+                        seats[i - 1].setIcon(bookedIcon);
+                        seats[i - 1].setDisabledIcon(bookedIcon);
+                        seats[i - 1].setEnabled(false);
 
-                for (JCheckBox seat : seats) {
-                    if (seat != null && seat.getText().equals(bookedSeat)) {
-                        seat.setEnabled(false);
-                        seat.setForeground(Color.GRAY);
                     }
                 }
             }
@@ -139,47 +127,121 @@ public class Bus extends JFrame {
         }
     }
 
-    // ================= BOOK SEATS =================
-    private void bookSeats() {
+    // ---------- CONFIRM BOOKING ----------
+    void confirmBooking() {
+        int selectedSeat = -1;
+
+        for (int i = 0; i < seats.length; i++) {
+            if (seats[i].isSelected()) {
+                selectedSeat = i + 1;
+                break;
+            }
+        }
+
+        if (selectedSeat == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a seat");
+            return;
+        }
+
+        bookSeatInDB(selectedSeat);
+    }
+
+    // ---------- TRANSACTION ----------
+    void bookSeatInDB(int seatNo) {
+        String seatColumn = "S" + seatNo + "status";
+
         try {
-            
+            con.setAutoCommit(false);
 
-            String sql = "INSERT INTO Bookings (RollNumber, SeatNumber, BusNumber) VALUES (?,?,?)";
-            ps = conn.prepareStatement(sql);
+            String checkSQL
+                    = "SELECT " + seatColumn + " FROM Bus WHERE BusNumber=?";
+            ps = con.prepareStatement(checkSQL);
+            ps.setString(1, busNumber);
+            rs = ps.executeQuery();
 
-            boolean selected = false;
-
-            for (JCheckBox seat : seats) {
-                if (seat != null && seat.isSelected() && seat.isEnabled()) {
-
-                    ps.setString(1, RollNumber);
-                    ps.setString(2, seat.getText());
-                    ps.setString(3, busNo);
-                    ps.executeUpdate();
-
-                    seat.setEnabled(false);
-                    seat.setSelected(false);
-                    seat.setForeground(Color.GRAY);
-
-                    selected = true;
-                }
+            if (rs.next() && "booked".equals(rs.getString(1))) {
+                JOptionPane.showMessageDialog(this, "Seat already booked!");
+                return;
             }
 
-            if (selected) {
-                JOptionPane.showMessageDialog(this, "Booking Successful");
-            } else {
-                JOptionPane.showMessageDialog(this, "Select at least one seat");
-            }
+            String insertBooking
+                    = "INSERT INTO Bookings (RollNumber, SeatNumber, BusNumber) VALUES (?, ?, ?)";
+            ps = con.prepareStatement(insertBooking);
+            ps.setString(1, rollNumber);
+            ps.setString(2, "S" + seatNo);
+            ps.setString(3, busNumber);
+            ps.executeUpdate();
 
-        } catch (SQLIntegrityConstraintViolationException ex) {
-            JOptionPane.showMessageDialog(this, "Seat already booked!");
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage());
+            String updateBus
+                    = "UPDATE Bus SET " + seatColumn + "='booked' WHERE BusNumber=?";
+            ps = con.prepareStatement(updateBus);
+            ps.setString(1, busNumber);
+            ps.executeUpdate();
+
+            con.commit();
+
+            JOptionPane.showMessageDialog(this, "Seat S" + seatNo + " booked successfully!");
+
+            seats[seatNo - 1].setIcon(bookedIcon);
+            seats[seatNo - 1].setDisabledIcon(bookedIcon);
+            seats[seatNo - 1].setEnabled(false);
+
+        } catch (Exception e) {
+            try {
+                con.rollback();
+            } catch (Exception ex) {
+            }
+            JOptionPane.showMessageDialog(this, "Booking failed!");
         }
     }
 
-    // ================= MAIN =================
+    // ---------- CREATE SEAT ----------
+    void createSeat(JPanel panel, int index, int x, int y) {
+        if (index > seats.length) {
+            return;
+        }
+
+        JRadioButton seat = new JRadioButton();
+        seat.setBounds(x, y, 30, 30);
+
+        seat.setIcon(availableIcon);
+        seat.setSelectedIcon(selectedIcon);
+
+        seat.setOpaque(false);
+        seat.setContentAreaFilled(false);
+        seat.setBorderPainted(false);
+        seat.setFocusPainted(false);
+        
+
+        seat.addActionListener(e -> {
+            for (JRadioButton s : seats) {
+                if (s != null && s.isEnabled() && !s.isSelected()) {
+                    s.setIcon(availableIcon);
+                }
+            }
+            seat.setIcon(selectedIcon);
+        });
+
+        seats[index - 1] = seat;
+        seatGroup.add(seat);
+        seat.setDisabledSelectedIcon(bookedIcon);
+
+        panel.add(seat);
+    }
+
+    // ---------- LEGEND ----------
+    void addLegendIcon(ImageIcon icon, String text, int y) {
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setBounds(80, y, 24, 24);
+        add(iconLabel);
+
+        JLabel label = new JLabel("= " + text);
+        label.setBounds(110, y, 100, 20);
+        add(label);
+    }
+
+    // ---------- MAIN ----------
     public static void main(String[] args) {
-        new Bus("LN-101","24ucs100");
+        new Bus("LN-101", "24UCS000");
     }
 }
